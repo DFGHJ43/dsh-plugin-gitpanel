@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36" role="img" aria-label="Git branch">
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 12.4V23.6" stroke="#4C6EF5" stroke-width="2.6" />
+    <path d="M12 17c0 2.6 2.4 4 5 4h5.4" stroke="#7E96FF" stroke-width="2.6" />
+  </g>
+  <circle cx="12" cy="9" r="3.2" fill="#4C6EF5" />
+  <circle cx="12" cy="27" r="3.2" fill="#4C6EF5" />
+  <circle cx="26" cy="21" r="3.2" fill="#7E96FF" />
+</svg>

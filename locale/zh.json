@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Git 分支面板",
+    "description": "在对话输入框中显示当前仓库分支，并通过提交关系图菜单快速切换分支。",
+    "detail": "docs/DETAIL.md"
+  }
+}

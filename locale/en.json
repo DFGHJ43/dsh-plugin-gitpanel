@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Git panel",
+    "description": "Shows the current repository branch in the composer and switches branches from a commit-graph menu.",
+    "detail": "docs/DETAIL.md"
+  }
+}

@@ -1,0 +1,3 @@
+- insert:
+    - id: gitpanel
+      name: dsh-plugin-gitpanel
