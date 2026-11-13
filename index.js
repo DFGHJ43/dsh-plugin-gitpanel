@@ -23,9 +23,11 @@
  * shell) with a deadline; the executable is resolved once per plugin life.
  */
 
-import { stat } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { isAbsolute } from 'node:path'
-import { clampInt, readState, switchBranch } from './lib/git-read.js'
+import { commitChanges, createBranch, fetchRemote, pullBranch, pushBranch, readCommitTemplate } from './lib/git-actions.js'
+import { clampInt, DEFAULT_COMMIT_LIMIT, cleanMessage, readState, switchBranch } from './lib/git-read.js'
 
 /** Cordis function-plugin name. */
 export const name = 'gitpanel'
@@ -38,10 +40,17 @@ export const inject = ['webServer', 'connection', 'subprocess', 'sessions', 'wor
 /** Route paths. Kept outside `/api`, which the Remote transport owns. */
 const STATE_PATH = '/gitpanel/state'
 const SWITCH_PATH = '/gitpanel/switch'
+const TEMPLATE_PATH = '/gitpanel/commit-template'
+const FETCH_PATH = '/gitpanel/fetch'
+const PULL_PATH = '/gitpanel/pull'
+const BRANCH_PATH = '/gitpanel/branch'
+const COMMIT_PATH = '/gitpanel/commit'
+const PUSH_PATH = '/gitpanel/push'
 
-/** Request bodies are tiny JSON objects; anything larger is hostile. */
+/** Request bodies are small JSON objects; a commit message gets a larger ceiling. */
 const MAX_BODY_BYTES = 16 * 1024
-/** Upper bound on one git invocation; the switch itself is usually instant. */
+const MAX_COMMIT_BODY_BYTES = 128 * 1024
+/** Upper bound on one git invocation; network operations raise it per call. */
 const GIT_TIMEOUT_MS = 20_000
 const COMMIT_LIMIT_MAX = 300
 /** A ref name git itself would accept: no whitespace, no `~^:?*[\\`. */
@@ -63,18 +72,53 @@ function sendMethodNotAllowed(res, allow) {
 }
 
 /** Collect a bounded request body as UTF-8 text; null past the ceiling. */
-async function readBoundedBody(req) {
+async function readBoundedBody(req, limit = MAX_BODY_BYTES) {
   const chunks = []
   let size = 0
   for await (const chunk of req) {
     size += chunk.byteLength
-    if (size > MAX_BODY_BYTES) {
+    if (size > limit) {
       req.resume()
       return null
     }
     chunks.push(chunk)
   }
   return Buffer.concat(chunks, size).toString('utf8')
+}
+
+/**
+ * Read one JSON request body behind the shared content-type, size, and parse
+ * checks. Responds itself and returns null on failure.
+ */
+async function readJsonBody(req, res, limit = MAX_BODY_BYTES) {
+  const essence = String(req.headers['content-type']).split(';', 1)[0]?.trim().toLowerCase()
+  if (essence !== 'application/json') {
+    sendJson(res, 415, { ok: false, code: 'unsupported-media-type', message: 'content-type must be application/json' })
+    return null
+  }
+  let text
+  try {
+    text = await readBoundedBody(req, limit)
+  } catch {
+    sendJson(res, 400, { ok: false, code: 'bad-request', message: 'request body unreadable' })
+    return null
+  }
+  if (text === null) {
+    sendJson(res, 413, { ok: false, code: 'payload-too-large', message: 'request body is too large' })
+    return null
+  }
+  let body
+  try {
+    body = JSON.parse(text)
+  } catch {
+    sendJson(res, 400, { ok: false, code: 'bad-request', message: 'request body must be a JSON object' })
+    return null
+  }
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    sendJson(res, 400, { ok: false, code: 'bad-request', message: 'request body must be a JSON object' })
+    return null
+  }
+  return body
 }
 
 /** Register the state and switch routes. */
@@ -113,14 +157,19 @@ export function apply(ctx) {
    * Run one git command in `cwd`. Never throws: every failure becomes a result
    * object with an exit code, bounded output, and a machine-readable `code`.
    * The environment is the provider's scrubbed parent plus the minimal git
-   * hardening (no prompts, no optional locks, C locale for stable parsing).
+   * hardening (no prompts, no editors, no optional locks, C locale for stable
+   * parsing). `options.stdin` feeds a message to commands that read stdin.
    */
   const GIT_ENV = {
     GIT_TERMINAL_PROMPT: '0',
     GIT_OPTIONAL_LOCKS: '0',
+    GIT_EDITOR: 'true',
+    GIT_SEQUENCE_EDITOR: 'true',
+    GIT_MERGE_AUTOEDIT: 'no',
     LC_ALL: 'C',
   }
-  const runGit = async (cwd, args, timeoutMs = GIT_TIMEOUT_MS) => {
+  const runGit = async (cwd, args, options = {}) => {
+    const { timeoutMs = GIT_TIMEOUT_MS, stdin } = options
     const subprocess = ctx.get('subprocess')
     if (!subprocess) {
       return { ok: false, code: 'no-subprocess', message: 'The subprocess capability is not available in this profile.' }
@@ -139,7 +188,7 @@ export function apply(ctx) {
         argv: [executable, ...args],
         cwd,
         stdio: {
-          stdin: 'ignore',
+          stdin: stdin === undefined ? 'ignore' : { data: stdin },
           stdout: { maxBytes: 4 * 1024 * 1024 },
           stderr: { maxBytes: 256 * 1024 },
         },
@@ -234,6 +283,50 @@ export function apply(ctx) {
     },
   }), `gitpanel: GET ${STATE_PATH}`)
 
+  /**
+   * Attach a fresh full state to an action outcome so the panel refreshes once,
+   * whether the operation succeeded or failed (a conflicted pull still changed
+   * the work tree).
+   */
+  const respondWithState = async (res, directory, result) => {
+    let state
+    try {
+      state = await readState(runGit, directory, { commitLimit: DEFAULT_COMMIT_LIMIT })
+    } catch {
+      state = undefined
+    }
+    sendJson(res, 200, state === undefined ? result : { ...result, state })
+  }
+
+  /** Shared preamble for the write routes: fence, method, JSON body, directory. */
+  const actionContext = async (req, res, limit) => {
+    if (rejected(req, res)) return null
+    if (req.method !== 'POST') {
+      sendMethodNotAllowed(res, 'POST')
+      return null
+    }
+    const body = await readJsonBody(req, res, limit)
+    if (body === null) return null
+    const directory = await directoryFor(body.sessionId, body.path)
+    if (directory.error) {
+      sendJson(res, directory.error.status, { ok: false, code: directory.error.code, message: directory.error.message })
+      return null
+    }
+    return { body, directory: directory.directory }
+  }
+
+  /** Register one action route whose handler receives (body, directory). */
+  const registerAction = (path, limit, handler) => ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path,
+    handler: async (req, res) => {
+      const context = await actionContext(req, res, limit)
+      if (context === null) return
+      const result = await handler(context.body, context.directory)
+      await respondWithState(res, context.directory, result)
+    },
+  }), `gitpanel: POST ${path}`)
+
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: SWITCH_PATH,
@@ -243,30 +336,9 @@ export function apply(ctx) {
         sendMethodNotAllowed(res, 'POST')
         return
       }
-      const essence = String(req.headers['content-type']).split(';', 1)[0]?.trim().toLowerCase()
-      if (essence !== 'application/json') {
-        sendJson(res, 415, { ok: false, code: 'unsupported-media-type', message: 'content-type must be application/json' })
-        return
-      }
-      let text
-      try {
-        text = await readBoundedBody(req)
-      } catch {
-        sendJson(res, 400, { ok: false, code: 'bad-request', message: 'request body unreadable' })
-        return
-      }
-      if (text === null) {
-        sendJson(res, 413, { ok: false, code: 'payload-too-large', message: 'request body is too large' })
-        return
-      }
-      let body
-      try {
-        body = JSON.parse(text)
-      } catch {
-        sendJson(res, 400, { ok: false, code: 'bad-request', message: 'request body must be a JSON object' })
-        return
-      }
-      if (typeof body !== 'object' || body === null || typeof body.branch !== 'string') {
+      const body = await readJsonBody(req, res)
+      if (body === null) return
+      if (typeof body.branch !== 'string') {
         sendJson(res, 400, { ok: false, code: 'bad-request', message: 'request body needs a string "branch"' })
         return
       }
@@ -288,4 +360,41 @@ export function apply(ctx) {
       sendJson(res, 200, { ok: true, branch: result.branch, state: result.state })
     },
   }), `gitpanel: POST ${SWITCH_PATH}`)
+
+  // The configured commit template, read when the commit bubble opens.
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: TEMPLATE_PATH,
+    handler: async (req, res) => {
+      if (rejected(req, res)) return
+      if (req.method !== 'GET') {
+        sendMethodNotAllowed(res, 'GET')
+        return
+      }
+      const url = new URL(String(req.url), 'http://localhost')
+      const directory = await directoryFor(url.searchParams.get('sessionId'), url.searchParams.get('path'))
+      if (directory.error) {
+        sendJson(res, directory.error.status, { ok: false, code: directory.error.code, message: directory.error.message })
+        return
+      }
+      const result = await readCommitTemplate(runGit, directory.directory, {
+        readTextFile: (file) => readFile(file, 'utf8'),
+        homeDir: homedir(),
+      })
+      sendJson(res, 200, result)
+    },
+  }), `gitpanel: GET ${TEMPLATE_PATH}`)
+
+  registerAction(FETCH_PATH, MAX_BODY_BYTES, (_body, directory) => fetchRemote(runGit, directory))
+  registerAction(PULL_PATH, MAX_BODY_BYTES, (_body, directory) => pullBranch(runGit, directory))
+  registerAction(BRANCH_PATH, MAX_BODY_BYTES, (body, directory) => (
+    createBranch(runGit, directory, typeof body.name === 'string' ? body.name : '')
+  ))
+  registerAction(COMMIT_PATH, MAX_COMMIT_BODY_BYTES, (body, directory) => (
+    commitChanges(runGit, directory, typeof body.message === 'string' ? body.message : '')
+  ))
+  registerAction(PUSH_PATH, MAX_BODY_BYTES, (body, directory) => pushBranch(runGit, directory, {
+    setUpstream: body.setUpstream === true,
+    remote: typeof body.remote === 'string' ? body.remote : undefined,
+  }))
 }

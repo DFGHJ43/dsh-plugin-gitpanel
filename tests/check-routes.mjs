@@ -9,16 +9,27 @@
  * sandbox denies named pipes; the plugin's own runner is unaffected.
  */
 import { spawn } from 'node:child_process'
-import { closeSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs'
+import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { apply } from '../index.js'
+import { createFixtureRepo } from './fixture.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const repo = join(here, '..')
 const out = join(here, 'out')
 mkdirSync(out, { recursive: true })
+// The route tests run against a repository built here, never the plugin's own
+// checkout, so committing in the workspace cannot change their expectations.
+const repo = join(out, 'route-fixture')
+rmSync(repo, { recursive: true, force: true })
+mkdirSync(repo, { recursive: true })
+const fixtureGit = (cwd, args) => new Promise((resolve) => {
+  const child = spawn('git', args, { cwd, stdio: 'ignore', windowsHide: true })
+  child.on('error', () => resolve({ ok: false, stdout: '', stderr: 'spawn failed' }))
+  child.on('close', (code) => resolve({ ok: code === 0, stdout: '', stderr: '' }))
+})
+await createFixtureRepo(fixtureGit, repo)
 
 const failures = []
 const check = (name, condition, detail) => {
@@ -33,23 +44,33 @@ const subprocess = {
     if (name === 'git') return 'git'
     throw new Error(`not found: ${name}`)
   },
-  spawn({ argv, cwd, env }) {
+  spawn({ argv, cwd, env, stdio }) {
     const stdoutPath = join(out, `route-${run}.out`)
     const stderrPath = join(out, `route-${run}.err`)
+    const stdinPath = join(out, `route-${run}.in`)
     run += 1
     const outFd = openSync(stdoutPath, 'w')
     const errFd = openSync(stderrPath, 'w')
+    const stdinSpec = stdio?.stdin
+    if (stdinSpec !== null && typeof stdinSpec === 'object' && 'data' in stdinSpec) {
+      writeFileSync(stdinPath, String(stdinSpec.data))
+    }
+    // The child reads stdin, so the descriptor must be readable.
+    const stdinFd = stdinSpec !== null && typeof stdinSpec === 'object' && 'data' in stdinSpec
+      ? openSync(stdinPath, 'r')
+      : undefined
     const done = new Promise((resolve) => {
       const child = spawn(argv[0], argv.slice(1), {
         cwd,
         env: { ...process.env, ...(env ?? {}) },
-        stdio: ['ignore', outFd, errFd],
+        stdio: [stdinFd ?? 'ignore', outFd, errFd],
         windowsHide: true,
       })
       child.on('error', () => resolve({ exitCode: -1, signal: null }))
       child.on('close', (code, signal) => {
         closeSync(outFd)
         closeSync(errFd)
+        if (stdinFd !== undefined) closeSync(stdinFd)
         resolve({ exitCode: code, signal })
       })
     })
@@ -146,6 +167,75 @@ async function call(route, request) {
 }
 
 const auth = { 'x-test-auth': 'secret' }
+
+// ---------------------------------------------------------- new write routes
+const registeredCount = routes.size
+const actionPaths = ['/gitpanel/fetch', '/gitpanel/pull', '/gitpanel/branch', '/gitpanel/commit', '/gitpanel/push']
+for (const path of actionPaths) check(`route registered: ${path}`, routes.has(path))
+check('template route registered', routes.has('/gitpanel/commit-template'))
+
+const templateRoute = routes.get('/gitpanel/commit-template')
+const fetchRoute = routes.get('/gitpanel/fetch')
+const pullRoute = routes.get('/gitpanel/pull')
+const branchRoute = routes.get('/gitpanel/branch')
+const commitRoute = routes.get('/gitpanel/commit')
+const pushRoute = routes.get('/gitpanel/push')
+
+const jsonPost = (path, payload, headers = auth) => makeRequest({
+  method: 'POST',
+  url: path,
+  headers: { ...headers, 'content-type': 'application/json' },
+  body: JSON.stringify(payload),
+})
+
+const unauthFetch = await call(fetchRoute, makeRequest({ method: 'POST', url: '/gitpanel/fetch', headers: { 'content-type': 'application/json' }, body: '{}' }))
+check('unauthenticated action refused', unauthFetch.status === 401, String(unauthFetch.status))
+
+const fetchNoRemote = await call(fetchRoute, jsonPost('/gitpanel/fetch', { sessionId: liveSession.sessionId }))
+check('fetch without remote reported', fetchNoRemote.status === 200 && fetchNoRemote.json?.ok === false && fetchNoRemote.json?.code === 'no-remote', `${fetchNoRemote.status} ${fetchNoRemote.body.slice(0, 200)}`)
+check('failed fetch still returns state', fetchNoRemote.json?.state?.repo === true, JSON.stringify(fetchNoRemote.json?.state).slice(0, 120))
+
+const pushNoRemote = await call(pushRoute, jsonPost('/gitpanel/push', { sessionId: liveSession.sessionId }))
+check('push without remote reported', pushNoRemote.status === 200 && pushNoRemote.json?.code === 'no-remote', `${pushNoRemote.status} ${pushNoRemote.body.slice(0, 200)}`)
+
+const pullNoUpstream = await call(pullRoute, jsonPost('/gitpanel/pull', { sessionId: liveSession.sessionId }))
+check('pull without upstream reported', pullNoUpstream.status === 200 && pullNoUpstream.json?.code === 'no-upstream', `${pullNoUpstream.status} ${pullNoUpstream.body.slice(0, 200)}`)
+
+const emptyCommit = await call(commitRoute, jsonPost('/gitpanel/commit', { sessionId: liveSession.sessionId, message: '   ' }))
+check('empty commit message reported', emptyCommit.status === 200 && emptyCommit.json?.code === 'empty-message', `${emptyCommit.status} ${emptyCommit.body.slice(0, 200)}`)
+check('failed commit returns state', emptyCommit.json?.state?.repo === true && Number.isInteger(emptyCommit.json?.state?.stagedCount), JSON.stringify(emptyCommit.json?.state).slice(0, 120))
+
+const invalidBranchRoute = await call(branchRoute, jsonPost('/gitpanel/branch', { sessionId: liveSession.sessionId, name: 'bad..name' }))
+check('invalid branch routed', invalidBranchRoute.status === 200 && invalidBranchRoute.json?.code === 'invalid-name', `${invalidBranchRoute.status} ${invalidBranchRoute.body.slice(0, 220)}`)
+const duplicateBranchRoute = await call(branchRoute, jsonPost('/gitpanel/branch', { sessionId: liveSession.sessionId, name: 'main' }))
+check('duplicate branch routed', duplicateBranchRoute.status === 200 && duplicateBranchRoute.json?.code === 'exists', `${duplicateBranchRoute.status} ${duplicateBranchRoute.body.slice(0, 200)}`)
+
+const wrongType = await call(commitRoute, makeRequest({
+  method: 'POST', url: '/gitpanel/commit', headers: { ...auth, 'content-type': 'text/plain' }, body: 'x',
+}))
+check('action needs JSON content type', wrongType.status === 415, String(wrongType.status))
+
+// commit.template is read from the repository configuration (git config only).
+const templatePath = join(repo, 'docs', 'commit-template.txt')
+writeFileSync(templatePath, '# Git panel template\n\nSubject line\n\n# explain the change\n')
+await new Promise((resolve) => {
+  const child = spawn('git', ['config', 'commit.template', 'docs/commit-template.txt'], { cwd: repo, stdio: 'ignore', windowsHide: true })
+  child.on('close', resolve)
+  child.on('error', resolve)
+})
+const templateResponse = await call(templateRoute, makeRequest({
+  url: `/gitpanel/commit-template?sessionId=${liveSession.sessionId}`,
+  headers: auth,
+}))
+check('template route reads file', templateResponse.status === 200 && templateResponse.json?.ok === true && String(templateResponse.json?.template).startsWith('# Git panel'), `${templateResponse.status} ${String(templateResponse.body).slice(0, 160)}`)
+check('template route reports source', templateResponse.json?.source === 'commit.template' && String(templateResponse.json?.path).endsWith('commit-template.txt'), JSON.stringify(templateResponse.json).slice(0, 200))
+await new Promise((resolve) => {
+  const child = spawn('git', ['config', '--unset', 'commit.template'], { cwd: repo, stdio: 'ignore', windowsHide: true })
+  child.on('close', resolve)
+  child.on('error', resolve)
+})
+const noTemplateResponse = await call(templateRoute, makeRequest({ url: `/gitpanel/commit-template?sessionId=${liveSession.sessionId}`, headers: auth }))
+check('absent template is empty', noTemplateResponse.json?.ok === true && noTemplateResponse.json?.template === '' && noTemplateResponse.json?.source === null, JSON.stringify(noTemplateResponse.json).slice(0, 160))
 
 // Unauthenticated requests are refused before any repository work.
 const refused = await call(stateRoute, makeRequest({ url: '/gitpanel/state?sessionId=live-session' }))
@@ -244,14 +334,14 @@ check('dirty switch 409', dirty.status === 409 && dirty.json?.code === 'dirty', 
 check('dirty switch keeps git message', /local changes|would be overwritten/i.test(dirty.json?.message ?? ''), dirty.json?.message)
 writeFileSync(notePath, original)
 
-// Disposing the plugin removes both routes.
+// Disposing the plugin removes every route.
 for (const dispose of disposers) dispose()
 check('routes disposed with the plugin', routes.size === 0, [...routes.keys()].join(','))
 
 console.log(JSON.stringify({
   ok: failures.length === 0,
   failures,
-  routeCount: 2,
+  routeCount: registeredCount,
   lightBranch: light.json?.branch,
   branches: full.json?.branches?.map((branch) => branch.name),
   dirtyMessage: dirty.json?.message,

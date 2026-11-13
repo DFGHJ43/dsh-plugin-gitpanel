@@ -12,11 +12,16 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { readState, switchBranch } from '../lib/git-read.js'
+import { parseStatusSummary } from '../lib/git-core.js'
+import { createFixtureRepo } from './fixture.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const repo = join(here, '..')
 const out = join(here, 'out')
 mkdirSync(out, { recursive: true })
+// Built fresh here so the assertions never depend on the plugin's own checkout.
+const repo = join(out, 'fixture-repo')
+rmSync(repo, { recursive: true, force: true })
+mkdirSync(repo, { recursive: true })
 
 let run = 0
 const runGit = async (cwd, args) => {
@@ -57,6 +62,7 @@ const check = (name, condition, detail) => {
 }
 
 // ---------------------------------------------------------------- main fixture
+await createFixtureRepo(runGit, repo)
 const mainNotePath = join(repo, 'docs', 'main-note.md')
 const originalMainNote = readFileSync(mainNotePath, 'utf8')
 
@@ -66,7 +72,7 @@ check('light omits branches', lightState.branches === undefined)
 
 const state = await readState(runGit, repo)
 check('repo detected', state.repo === true)
-check('root reported', state.root.endsWith('dsh-plugin-gitpanel'), state.root)
+check('root reported', state.root.endsWith('fixture-repo'), state.root)
 check('current branch', state.branch === 'main', state.branch)
 check('head short hash', /^[0-9a-f]{7}$/.test(state.head ?? ''), state.head)
 check('not detached', state.detached === false)
@@ -85,6 +91,23 @@ for (const edge of state.edges) {
   check('edge points forward', edge.toRow > edge.fromRow, `${edge.fromRow}->${edge.toRow}`)
   check('edge lane matches target', state.commits[edge.toRow].lane === edge.toLane)
 }
+
+// `git status --porcelain=v2 --branch` is the full read's branch source.
+const dirtyStatus = parseStatusSummary([
+  '# branch.oid abc1234567890',
+  '# branch.head main',
+  '# branch.upstream origin/main',
+  '# branch.ab +2 -3',
+  '1 .M N... 100644 100644 100644 a b file.txt',
+  '? untracked.txt',
+].join('\n'))
+check('status summary branch', dirtyStatus.branch === 'main' && dirtyStatus.head === 'abc1234', JSON.stringify(dirtyStatus))
+check('status summary sync', dirtyStatus.ahead === 2 && dirtyStatus.behind === 3 && dirtyStatus.upstream === 'origin/main')
+check('status summary dirty', dirtyStatus.dirtyCount === 2, String(dirtyStatus.dirtyCount))
+const detachedStatus = parseStatusSummary('# branch.oid abc1234def\n# branch.head (detached)\n')
+check('status summary detached', detachedStatus.detached === true && detachedStatus.branch === null)
+const unbornStatus = parseStatusSummary('# branch.oid (initial)\n# branch.head main\n')
+check('status summary unborn', unbornStatus.empty === true && unbornStatus.branch === 'main')
 
 const switched = await switchBranch(runGit, repo, 'hotfix/icon')
 check('switch succeeded', switched.ok === true, JSON.stringify(switched).slice(0, 300))
@@ -140,6 +163,13 @@ check('unborn has no commits', unborn.commits.length === 0 && unborn.empty === t
 await git(dirtyRepo, 'checkout', '--detach', 'HEAD')
 const detached = await readState(runGit, dirtyRepo, { light: true })
 check('detached head detected', detached.detached === true && detached.branch === null, JSON.stringify(detached))
+const detachedFull = await readState(runGit, dirtyRepo)
+check(
+  'detached full read',
+  detachedFull.repo === true && detachedFull.detached === true && detachedFull.branch === null && detachedFull.commits.length > 0,
+  JSON.stringify({ repo: detachedFull.repo, detached: detachedFull.detached, branch: detachedFull.branch, commits: detachedFull.commits.length }),
+)
+check('detached full read marks no current branch', detachedFull.branches.every((branch) => branch.current === false))
 
 // A directory outside any repository is reported as such.
 const notRepo = await readState(runGit, tmpdir(), { light: true })
