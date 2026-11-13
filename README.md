@@ -26,17 +26,56 @@ DeepSeek Harness Web UI 的 Git 分支面板插件。
 - **统一气泡反馈**：提交编辑与错误提示共用一个带尖尾的 Speech Bubble 组件；错误气泡为红底白字、黑白单色 `⚠`，显示本地化摘要 + Git 原始错误细节，8 秒自动消失或手动关闭，同一时间只存在一个气泡。
 - **主题与多语言**：面板、气泡与提示全部使用 DSH 主题变量，自动适配浅色 / 深色主题；界面文案提供英文与简体中文。
 
-### 安装
+### 安装与快速开始
 
-本仓库是一个 DSH 插件 bundle（包名 `dsh-plugin-gitpanel`，Host 行 `gitpanel`），需要安装到 DSH Profile 中：
+本仓库是一个 DSH 插件 bundle（包名 `dsh-plugin-gitpanel`，Host 行 `gitpanel`），不发布到 npm，以目录形式安装到 DSH Profile 中使用。
 
-1. 打开 DSH Web 界面的 **Plugins / 插件** 页面；
-2. 使用 **Add plugin / 添加插件** 选择本目录（或通过 `plugin_manager` 的 `install_bundle` 指定该目录）；
-3. 安装后插件在 Profile 中生效，刷新页面即可在对话输入框看到分支入口。
+**环境要求**
 
-运行环境：DSH Web（desktop）Profile，`webServer`、`connection`、`subprocess`、`sessions`、`workingDirectory` 服务可用（官方 Web Profile 默认满足），并确保 `git` 在 Host 的 PATH 中。本插件在 DSH `0.2.2-rc.3` 上开发与验证。
+- DSH Desktop / Web 版（在 DSH `0.2.2-rc.3` 的 desktop profile 上开发与验证；其它版本如内部 API 变动可能不兼容）
+- Host 的 PATH 中有可用的 `git` 2.23+（更旧版本会自动回退到 `git checkout`）
+- 官方 Web Profile 提供的服务：`webServer`、`connection`、`subprocess`、`sessions`、`workingDirectory`
+- 一个 Git 仓库作为会话工作区（插件只在该目录属于 Git 仓库时显示入口）
+- 如需获取 / 拉取 / 推送：仓库已配置 remote，且本机已通过 credential helper 或 SSH key 完成认证（插件不会弹出终端密码提示）
 
-> 修改 Host 端代码后需要重新加载插件（remove + install 或重启 DSH）；修改 `client.js` 后刷新页面即可。
+**安装步骤**
+
+1. 获取源码：`git clone <repository-url> dsh-plugin-gitpanel`（或下载 ZIP 后解压；目录名建议保持 `dsh-plugin-gitpanel`）
+2. 打开 DSH 的 **Plugins / 插件** 页面
+3. 点击 **Add plugin / 添加插件**，选择上一步的目录
+4. 安装完成后插件在 Profile 中启用；刷新页面即可看到输入框工具栏里的分支按钮。Plugins 页面会显示插件名「Git 分支面板 / Git panel」及其详情页
+
+> 也可以让 DSH Agent 帮忙安装：把本目录的绝对路径告诉它，让它用 `plugin_manager` 的 `install_bundle` 安装。
+> 修改与升级：浏览器端（`client.js` 等）改动刷新页面即可；Host 端（`index.js`、`lib/`）改动后需要移除并重新安装该插件，或重启 DSH。
+> 卸载：在 Plugins 页面对 `dsh-plugin-gitpanel` 执行 Disable（禁用）或 Remove（移除）。
+
+### 使用方法
+
+打开任意一个工作区为 Git 仓库的对话，输入框工具行（权限 / 计划控件右侧）会出现「分支图标 + 当前分支名」的按钮。
+
+- **查看面板**：点击按钮打开——左侧提交关系图、右侧本地分支列表、底部操作栏。点击面板外部或按 `Esc` 关闭；右上角刷新按钮可立即重读仓库。
+- **切换分支**：点击右侧任一本地分支。若存在会被覆盖的未提交修改，Git 会阻止切换，面板显示 Git 的原始错误，不会覆盖文件。
+- **获取**：拉取远程引用（`git fetch --all --prune`），不修改工作区、不自动合并。
+- **拉取**：对当前分支执行 `git pull`，遵循仓库自身的 `pull.rebase` / 合并策略；冲突时保留本地修改并列出冲突文件。
+- **新建分支**：点击后输入名称，创建并自动切换；非法名称或重名会在气泡内提示。
+- **提交**：按钮上实时显示未提交更改数量。点击后弹出提交气泡：
+  - 配置了 `commit.template` 时预填该模板内容，未配置则为空；
+  - 只有点击气泡右下角的「提交」才真正执行 `git commit`；
+  - 优先提交暂存区；没有暂存内容时只提交已跟踪文件的修改，**未跟踪文件不会自动加入**。需要精确选择文件时，先在终端执行 `git add <files>`；
+  - 提交失败保留气泡与输入内容；成功才清空草稿并刷新状态；
+  - 编辑区不自动折行，长行可横向滚动，只有 Enter 产生真实换行，空行 / 列表 / 缩进原样保留。
+- **推送**：推送到已配置的上游分支，绝不 force。没有上游时会弹出确认气泡，选择远程并执行 `git push --set-upstream <remote> <branch>`。
+- **错误提示**：操作失败会弹出红底白字、前置黑白 `⚠` 的气泡，包含本地化摘要与 Git 原始错误；8 秒自动消失，也可手动关闭。
+- **提交草稿**：提交说明按仓库自动保存在浏览器 localStorage；关闭气泡、误触、切换焦点、提交失败都不会丢失，只有提交真正成功才清除。
+
+### 常见问题
+
+- **看不到分支按钮**：确认当前会话工作区是 Git 仓库、Host 能运行 `git`，且插件已在 Plugins 页面启用；非仓库目录会隐藏入口。
+- **Fetch / Pull / Push 报认证失败**：插件不进行交互式认证，请先配置 credential helper 或 SSH key。
+- **提交数量包含未跟踪文件，但提交后它们仍在**：按钮数字是全部未提交更改（含未跟踪文件）；提交只包含暂存区或已跟踪修改，未跟踪文件需要先 `git add`。
+- **只想提交部分文件**：先在终端暂存目标文件，再点击提交（插件只提交暂存区）。
+- **面板数据多久刷新一次**：页面可见时每 5 秒、窗口重新聚焦、每次操作完成后。
+- **支持哪些 DSH 版本**：在 DSH `0.2.2-rc.3` 上验证；其它版本如 API 变动可能不兼容。
 
 ### 设计约定与限制
 
@@ -103,17 +142,56 @@ A compact Git branch control for the DSH composer toolbar: read the commit graph
 - **One speech bubble for feedback**: the commit editor and error messages share a tailed Speech Bubble shell. Errors render white-on-red with a monochrome `⚠`, a localized summary plus Git's own detail, auto-dismiss after eight seconds (or close manually), and never stack.
 - **Theme and locales**: panel, bubbles, and notices use DSH theme tokens and follow light/dark themes automatically; UI text ships in English and Simplified Chinese.
 
-### Installation
+### Installation and quick start
 
-This repository is a DSH plugin bundle (package `dsh-plugin-gitpanel`, Loader row `gitpanel`) and installs into a DSH profile:
+This repository is a DSH plugin bundle (package `dsh-plugin-gitpanel`, Loader row `gitpanel`). It is not published to npm; install it from this directory into a DSH profile.
 
-1. Open **Plugins** in the DSH Web UI;
-2. Use **Add plugin** to select this directory (or install it with `plugin_manager`'s `install_bundle` pointing at this directory);
-3. The bundle activates in the profile; reload the page and the branch control appears in the composer.
+**Requirements**
 
-Requirements: a DSH Web (desktop) profile where `webServer`, `connection`, `subprocess`, `sessions`, and `workingDirectory` are available (the official Web profile provides them) and `git` is on the host PATH. Developed and verified against DSH `0.2.2-rc.3`.
+- DSH Desktop / Web (developed and verified on DSH `0.2.2-rc.3`, desktop profile; other versions may be incompatible if internal APIs changed)
+- `git` 2.23+ available on the host PATH (older versions fall back to `git checkout` automatically)
+- The services the official Web profile provides: `webServer`, `connection`, `subprocess`, `sessions`, `workingDirectory`
+- A Git repository as the session working directory (the control stays hidden elsewhere)
+- For fetch / pull / push: a configured remote and pre-configured authentication via a credential helper or SSH key (the plugin never prompts for credentials)
 
-> Host-side changes need a plugin reload (remove + install, or restart DSH); client-only changes need a page refresh.
+**Steps**
+
+1. Get the source: `git clone <repository-url> dsh-plugin-gitpanel` (or download and extract the ZIP; keep the directory named `dsh-plugin-gitpanel`)
+2. Open **Plugins** in DSH
+3. Click **Add plugin** and select that directory
+4. The bundle activates in the profile; refresh the page and the branch control appears in the composer tool row. The Plugins page lists it as "Git panel / Git 分支面板" with its detail page
+
+> You can also ask a DSH agent to install it: give it the absolute path of this directory and have it run `plugin_manager`'s `install_bundle`.
+> Updating: browser-side changes (`client.js`, …) need a page refresh; host-side changes (`index.js`, `lib/`) need the plugin removed and installed again, or a DSH restart.
+> Uninstalling: use Disable or Remove for `dsh-plugin-gitpanel` on the Plugins page.
+
+### Using the panel
+
+Open a conversation whose workspace is a Git repository; a "branch glyph + current branch" button appears in the composer tool row (after the permission/plan controls).
+
+- **Open the panel**: click the button — commit graph on the left, local branches on the right, action bar at the bottom. Click outside or press `Esc` to close; the refresh button re-reads the repository immediately.
+- **Switch branches**: click a local branch row. If uncommitted changes would be overwritten, Git refuses and the panel shows Git's own error instead of touching your files.
+- **Fetch**: updates remote-tracking refs (`git fetch --all --prune`) without touching the work tree or merging.
+- **Pull**: runs `git pull` for the current branch and follows the repository's `pull.rebase` / merge strategy. On conflict it keeps local work and lists the conflicted files.
+- **New branch**: type a name, then create — it is created from the current HEAD and checked out; invalid or duplicate names are reported inside the bubble.
+- **Commit**: the button shows the live count of uncommitted changes. Clicking it opens the commit bubble:
+  - a configured `commit.template` is loaded as the starting text, otherwise the editor starts empty;
+  - only the bubble's own **Commit** button runs `git commit`;
+  - staged changes are committed as they are; when nothing is staged, only tracked modifications are committed — **untracked files are never added automatically**. To commit a subset, run `git add <files>` in a terminal first;
+  - a failed commit keeps the bubble and your text; a successful one clears the draft and refreshes;
+  - the editor does not soft-wrap: long lines scroll horizontally, only Enter creates a real newline, and blank lines / lists / indentation are preserved.
+- **Push**: pushes the current branch to its configured upstream and never forces. Without an upstream, a confirmation bubble lets you pick the remote and run `git push --set-upstream <remote> <branch>`.
+- **Errors**: failures appear in a white-on-red bubble with a monochrome `⚠`, a localized summary, and Git's raw detail; it closes automatically after eight seconds or manually.
+- **Drafts**: the commit message is saved per repository in browser localStorage; closing the bubble, losing focus, or a failed commit never loses it, and only a successful commit clears it.
+
+### FAQ
+
+- **The branch button is missing**: make sure the session workspace is a Git repository, the host can run `git`, and the plugin is enabled on the Plugins page. Non-repository directories hide the control.
+- **Fetch / Pull / Push fails with an authentication error**: the plugin never prompts interactively; configure a credential helper or SSH key first.
+- **The commit count includes untracked files, but they are still untracked after committing**: the number covers all uncommitted changes including untracked files; a commit only contains the staging area (or tracked modifications), so `git add` them first.
+- **How do I commit only some files?** Stage the files in a terminal first; the panel commits the staging area as it is.
+- **How often does the panel refresh?** Every 5 seconds while the page is visible, when the window regains focus, and after every action.
+- **Which DSH versions are supported?** Verified on DSH `0.2.2-rc.3`; other versions may be incompatible when internal APIs change.
 
 ### Design rules and limits
 
