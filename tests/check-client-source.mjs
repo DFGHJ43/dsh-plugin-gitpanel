@@ -108,6 +108,47 @@ expect('error tail stays outside the content box', /gitpanel-bubble-tail'[\s\S]{
 expect('action button keeps a full line box', /\.gitpanel-action\{[^}]*line-height:15px/)
 expect('action label keeps a full line box', /\.gitpanel-action-label\{[^}]*line-height:15px/)
 
+// ---------------------------------------- commit graph row: badge integrity
+// Only the commit message may shrink; badges keep their full branch names.
+expect('message yields space first', /\.gitpanel-commit-subject\{[^}]*flex:1 1 auto[^}]*min-width:0[^}]*text-overflow:ellipsis/)
+expect('badge group never shrinks', /\.gitpanel-commit-refs\{[^}]*flex:0 0 auto/)
+expect('badge keeps its width', /\.gitpanel-ref\{[^}]*flex:0 0 auto/)
+expect('badge text never wraps', /\.gitpanel-ref\{[^}]*white-space:nowrap/)
+check('badge is not max-width capped', !/\.gitpanel-ref\{[^}]*max-width/.test(source))
+check('badge has no inner ellipsis', !/\.gitpanel-ref\{[^}]*text-overflow/.test(source))
+expect('hash column stays fixed', /\.gitpanel-commit-hash\{[^}]*flex:none/)
+expect('time column stays fixed', /\.gitpanel-commit-time\{[^}]*flex:none/)
+expect('narrow widths tighten spacing, not columns', /@media \(max-width:900px\)\{\.gitpanel-commit\{gap:6px/)
+
+// ---------------------------------------- commit graph: text box + tooltip
+// A real line box inside the fixed row height keeps descenders visible while the
+// horizontal ellipsis still truncates long messages.
+expect('commit row has a line box', /\.gitpanel-commit\{[^\n]*line-height:18px/)
+expect('commit text has a line box', /\.gitpanel-commit-subject\{[^}]*line-height:18px/)
+expect('commit text keeps the horizontal ellipsis', /\.gitpanel-commit-subject\{[^}]*overflow:hidden[^}]*text-overflow:ellipsis/)
+check('commit rows do not use the native title box', !/title: `\$\{commit\.subject\}/.test(source))
+expect('custom commit tooltip exists', /function CommitTooltip\(\{ point, commit \}\)/)
+expect('tooltip is portaled outside the scroll container', /createPortal\(node, document\.body\)/)
+expect('tooltip styling is themed', /\.gitpanel-tooltip\{[^\n]*background:var\(--dsw-alias-bg-layer-1/)
+check('tooltip background is opaque', !/\.gitpanel-tooltip\{[^\n]*--dsw-menu-surface-fill/.test(source))
+expect('tooltip anchors to the cursor', /function CommitTooltip\(\{ point, commit \}\)/)
+expect('tooltip follows the pointer', /onMouseMove: \(event\) => setHoverPoint/)
+expect('tooltip sits above the cursor', /style\.bottom = Math\.max\(8, window\.innerHeight - point\.y \+ 12\)/)
+expect('tooltip tail points at the cursor', /tailOffset = Math\.min\(Math\.max\(14, point\.x - left - 5\), width - 24\)/)
+// The tail is positioned outside the shell, so the shell itself must never scroll.
+check('tooltip shell does not scroll', !/\.gitpanel-tooltip\{[^\n]*(?:overflow:auto|max-height)/.test(source))
+expect('tooltip body owns the height cap', /\.gitpanel-tooltip-body\{[^\n]*max-height:min\(240px/)
+expect('tooltip body is the scroll area', /\.gitpanel-tooltip-body\{[^\n]*overflow:auto/)
+expect('tooltip tail stays outside the scroll body', /gitpanel-tooltip-tail'[\s\S]{0,200}gitpanel-tooltip-body/)
+expect('tooltip has a soft border', /\.gitpanel-tooltip\{[^}]*border:1px solid var\(--dsw-alias-border-l1\)/)
+expect('tooltip has rounded corners', /\.gitpanel-tooltip\{[^}]*border-radius:var\(--dsw-radius-sm/)
+expect('tooltip uses the plugin elevation', /\.gitpanel-tooltip\{[^}]*box-shadow:var\(--dsw-elevation-prominent/)
+expect('tooltip does not intercept pointer events', /\.gitpanel-tooltip\{[^}]*pointer-events:none/)
+check('tooltip colours stay token-driven', !/\.gitpanel-tooltip\{[^\n]*\b(?:color|border):[^;]*#[0-9a-f]{3,6}/i.test(source))
+expect('tooltip has a tail', /\.gitpanel-tooltip-tail\{[^}]*transform:rotate/)
+expect('tooltip tail flips by placement', /\.gitpanel-tooltip\[data-placement="below"\]/)
+expect('tooltip hides on scroll', /window\.addEventListener\('scroll', hide, true\)/)
+
 // ---------------------------------------------- commit dialog: size and draft
 // Taller message field without changing the bubble width or tail.
 expect('commit editor has a taller field', /\.gitpanel-bubble-textarea\{[^}]*min-height:160px/)

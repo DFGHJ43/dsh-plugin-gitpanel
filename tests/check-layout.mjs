@@ -83,10 +83,14 @@ check('merged branch keeps its tip', state.branches.find((branch) => branch.name
 check('commit count', state.commits.length === 5, `got ${state.commits.length}`)
 check('lane count', state.laneCount === 3, `got ${state.laneCount}`)
 check('edge count', state.edges.length === 5, `got ${state.edges.length}`)
-check('merge row flagged', state.commits[1].merge === true)
+// Row order among sibling branches can vary with identical commit timestamps, so
+// locate the merge commit by subject instead of by index.
+const mergeRow = state.commits.find((commit) => /^Merge branch 'feature\/graph'/.test(commit.subject))
+check('merge row flagged', mergeRow?.merge === true, JSON.stringify(mergeRow?.subject))
 check('dirty count is a number', Number.isInteger(state.dirtyCount), String(state.dirtyCount))
 check('truncated flag off', state.truncated === false)
-check('slashed branch classified as branch', state.commits[2].refs.every((ref) => ref.kind !== 'remote'), JSON.stringify(state.commits[2].refs))
+const featureRow = state.commits.find((commit) => commit.subject === 'Document the commit graph window')
+check('slashed branch classified as branch', featureRow?.refs.every((ref) => ref.kind !== 'remote'), JSON.stringify(featureRow?.refs))
 for (const edge of state.edges) {
   check('edge points forward', edge.toRow > edge.fromRow, `${edge.fromRow}->${edge.toRow}`)
   check('edge lane matches target', state.commits[edge.toRow].lane === edge.toLane)
@@ -174,6 +178,30 @@ check('detached full read marks no current branch', detachedFull.branches.every(
 // A directory outside any repository is reported as such.
 const notRepo = await readState(runGit, tmpdir(), { light: true })
 check('non-repo detected', notRepo.repo === false && notRepo.reason === 'not-a-repo', JSON.stringify(notRepo))
+
+// Long branch names survive the read path intact (the panel renders them whole).
+const longNamesRepo = join(scratch, 'long-branches')
+mkdirSync(longNamesRepo)
+await git(longNamesRepo, 'init', '--initial-branch=master')
+await git(longNamesRepo, 'config', 'user.name', 'GitPanel Test')
+await git(longNamesRepo, 'config', 'user.email', 'gitpanel@example.com')
+writeFileSync(join(longNamesRepo, 'a.txt'), 'a\n')
+await git(longNamesRepo, 'add', '-A')
+await git(longNamesRepo, 'commit', '-m', 'feat: long branch badge probe')
+await git(longNamesRepo, 'branch', 'feature/xxx')
+await git(longNamesRepo, 'branch', 'feature/very-long-branch-name')
+const longNamesState = await readState(runGit, longNamesRepo)
+const branchNames = longNamesState.branches.map((branch) => branch.name)
+check('short branch name intact', branchNames.includes('master'), JSON.stringify(branchNames))
+check('medium branch name intact', branchNames.includes('feature/xxx'), JSON.stringify(branchNames))
+check('very long branch name intact', branchNames.includes('feature/very-long-branch-name'), JSON.stringify(branchNames))
+const badgeRefNames = longNamesState.commits.flatMap((commit) => commit.refs.map((ref) => ref.name))
+check(
+  'badge refs keep the full branch name',
+  badgeRefNames.includes('feature/xxx') && badgeRefNames.includes('feature/very-long-branch-name'),
+  JSON.stringify(badgeRefNames),
+)
+check('no truncated badge names in the data', badgeRefNames.every((name) => !/(\.\.\.|…)$/.test(name)), JSON.stringify(badgeRefNames))
 
 rmSync(scratch, { recursive: true, force: true })
 

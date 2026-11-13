@@ -323,14 +323,21 @@ window.__ModuleLoader__.load({
 .gitpanel-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding-bottom:4px}
 .gitpanel-graph-wrap{position:relative;padding-bottom:4px}
 .gitpanel-graph-svg{position:absolute;left:0;top:0;pointer-events:none;display:block}
-.gitpanel-commit{display:flex;align-items:center;gap:8px;height:${ROW_H}px;padding-right:12px;font-size:12px;line-height:1;white-space:nowrap}
-.gitpanel-commit-subject{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--dsw-alias-label-primary)}
-.gitpanel-commit-refs{flex:0 1 auto;display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden}
-.gitpanel-ref{flex:none;padding:2px 6px;border-radius:var(--dsw-radius-sm,8px);corner-shape:round;font-size:10.5px;line-height:1.35;border:1px solid transparent;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gitpanel-commit{display:flex;align-items:center;gap:8px;height:${ROW_H}px;min-width:0;padding-right:12px;font-size:12px;line-height:18px;white-space:nowrap}
+.gitpanel-commit-subject{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-primary);line-height:18px}
+.gitpanel-commit-refs{flex:0 0 auto;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.gitpanel-ref{flex:0 0 auto;padding:2px 6px;border-radius:var(--dsw-radius-sm,8px);corner-shape:round;font-size:10.5px;line-height:1.35;border:1px solid transparent;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);white-space:nowrap}
 .gitpanel-ref-head{color:var(--dsw-alias-state-business-primary,var(--dsw-alias-label-primary));background:var(--dsw-alias-state-business-tertiary,var(--dsw-alias-bg-layer-2))}
 .gitpanel-commit-spacer{flex:1}
 .gitpanel-commit-hash{flex:none;color:var(--dsw-alias-label-secondary);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;opacity:.85}
-.gitpanel-commit-time{flex:none;color:var(--dsw-alias-label-caption,var(--dsw-alias-label-secondary));font-size:11px;min-width:56px;text-align:right}
+.gitpanel-commit-time{flex:none;color:var(--dsw-alias-label-caption,var(--dsw-alias-label-secondary));font-size:11px;min-width:56px;text-align:right;line-height:18px}
+.gitpanel-tooltip{position:fixed;z-index:1300;pointer-events:none;box-sizing:border-box;overflow:visible;padding:8px 12px;border-radius:var(--dsw-radius-sm,8px);border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-overlay,#ffffff));box-shadow:var(--dsw-elevation-prominent,0 4px 12px rgba(0,0,0,.1));color:var(--dsw-alias-label-primary);font-size:12px;line-height:1.5}
+.gitpanel-tooltip-body{display:flex;flex-direction:column;min-height:0;max-height:min(240px,calc(100vh - 32px));overflow:auto;scrollbar-width:thin;scrollbar-color:var(--dsh-scrollbar-thumb,var(--dsw-alias-border-l2)) transparent;--dsh-scrollbar-thumb:var(--dsw-alias-border-l2)}
+.gitpanel-tooltip-subject{white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-primary)}
+.gitpanel-tooltip-meta{margin-top:3px;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gitpanel-tooltip-tail{position:absolute;width:10px;height:10px;background:inherit;transform:rotate(45deg);border-right:1px solid var(--dsw-alias-border-l1);border-bottom:1px solid var(--dsw-alias-border-l1)}
+.gitpanel-tooltip[data-placement="below"] .gitpanel-tooltip-tail{top:-6px;transform:rotate(225deg)}
+.gitpanel-tooltip[data-placement="above"] .gitpanel-tooltip-tail{bottom:-6px}
 .gitpanel-filter{flex:none;padding:6px 10px 2px}
 .gitpanel-filter-input{width:100%;box-sizing:border-box;height:28px;padding:0 8px;border:1px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;outline:none}
 .gitpanel-filter-input:focus-visible{box-shadow:0 0 0 2px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
@@ -353,6 +360,7 @@ window.__ModuleLoader__.load({
 .gitpanel-empty{display:flex;align-items:center;justify-content:center;min-height:120px;color:var(--dsw-alias-label-secondary);font-size:12px;padding:24px;text-align:center}
 .gitpanel-loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:36px;color:var(--dsw-alias-label-secondary);font-size:12px}
 @media (max-width:820px){.gitpanel-columns{flex-direction:column}.gitpanel-graph-pane{flex:1 1 auto;max-height:46%;border-right:0;border-bottom:1px solid var(--dsw-alias-border-l1)}.gitpanel-branch-pane{flex:1 1 auto}}
+@media (max-width:900px){.gitpanel-commit{gap:6px;padding-right:8px}.gitpanel-commit-hash,.gitpanel-commit-time{font-size:10.5px}.gitpanel-commit-time{min-width:44px}}
 .gitpanel-footer-info{flex:none;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gitpanel-actions{display:flex;align-items:center;gap:2px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end;min-width:0}
 .gitpanel-action{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 6px;border:0;border-radius:var(--dsw-radius-sm,8px);outline:none;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11.5px;font-weight:500;line-height:15px;cursor:pointer;white-space:nowrap;transition:background .12s ease,color .12s ease}
@@ -752,13 +760,55 @@ window.__ModuleLoader__.load({
     const COMMIT_URL = 'gitpanel/commit'
     const PUSH_URL = 'gitpanel/push'
 
+    /** Plugin-styled hover tooltip anchored directly above the mouse cursor. */
+    function CommitTooltip({ point, commit }) {
+      if (!point || typeof window === 'undefined') return null
+      const width = Math.min(420, Math.max(220, window.innerWidth - 16))
+      const left = Math.min(Math.max(8, point.x - width / 2), Math.max(8, window.innerWidth - width - 8))
+      const tailOffset = Math.min(Math.max(14, point.x - left - 5), width - 24)
+      // Sit above the cursor whenever the viewport has room; near the top edge
+      // flip below it so the content is never pushed off screen.
+      const above = point.y - 12 >= Math.min(240, window.innerHeight - 24)
+      const style = { width, left }
+      if (above) style.bottom = Math.max(8, window.innerHeight - point.y + 12)
+      else style.top = Math.min(window.innerHeight - 16, point.y + 14)
+      const node = h('div', {
+        className: 'gitpanel-tooltip',
+        'data-placement': above ? 'above' : 'below',
+        style,
+        role: 'tooltip',
+      },
+      h('span', { className: 'gitpanel-tooltip-tail', style: { left: tailOffset } }),
+      h('div', { className: 'gitpanel-tooltip-body' },
+        h('div', { className: 'gitpanel-tooltip-subject' }, commit.subject || '(no message)'),
+        h('div', { className: 'gitpanel-tooltip-meta' }, `${commit.author} · ${commit.short}`)))
+      return createPortal ? createPortal(node, document.body) : node
+    }
+
     /** One commit row: gutter, subject, ref pills, hash, relative time. */
     function CommitRow({ commit, gutterWidth, locale }) {
       const refs = commit.refs ?? []
       const visibleRefs = refs.filter((ref) => ref.kind !== 'remote').slice(0, 2)
-      return h('div', {
+      const [hoverPoint, setHoverPoint] = useState(null)
+      useEffect(() => {
+        if (!hoverPoint) return undefined
+        const hide = () => setHoverPoint(null)
+        window.addEventListener('scroll', hide, true)
+        window.addEventListener('resize', hide)
+        return () => {
+          window.removeEventListener('scroll', hide, true)
+          window.removeEventListener('resize', hide)
+        }
+      }, [hoverPoint])
+      return h(React.Fragment, null, h('div', {
         className: 'gitpanel-commit',
-        title: `${commit.subject}\n${commit.author} · ${commit.short}`,
+        onMouseEnter: (event) => setHoverPoint({ x: event.clientX, y: event.clientY }),
+        onMouseMove: (event) => setHoverPoint((previous) => (
+          previous && Math.abs(previous.x - event.clientX) < 1 && Math.abs(previous.y - event.clientY) < 1
+            ? previous
+            : { x: event.clientX, y: event.clientY }
+        )),
+        onMouseLeave: () => setHoverPoint(null),
       },
       h('div', { style: { width: gutterWidth, minWidth: gutterWidth, flex: 'none' } }),
       h('div', { className: 'gitpanel-commit-subject' }, commit.subject || '(no message)'),
@@ -767,12 +817,12 @@ window.__ModuleLoader__.load({
           visibleRefs.map((ref) => h('span', {
             key: `${ref.kind}:${ref.name}`,
             className: `gitpanel-ref${ref.kind === 'head' ? ' gitpanel-ref-head' : ''}`,
-            title: ref.name,
           }, ref.kind === 'tag' ? `#${ref.name}` : ref.name)))
         : null,
       h('div', { className: 'gitpanel-commit-spacer' }),
       h('div', { className: 'gitpanel-commit-hash' }, commit.short),
-      h('div', { className: 'gitpanel-commit-time' }, relativeTime(commit.time, locale)))
+      h('div', { className: 'gitpanel-commit-time' }, relativeTime(commit.time, locale))),
+      h(CommitTooltip, { point: hoverPoint, commit }))
     }
 
     /** The graph pane: SVG topology behind the commit rows. */
