@@ -65,6 +65,8 @@ DeepSeek Harness 的 Git 分支面板插件。
 
 打开任意一个工作区为 Git 仓库的对话，输入框工具行（权限 / 计划控件右侧）会出现「分支图标 + 当前分支名」的按钮。
 
+![输入框工具行中的分支入口（红框处），显示分支图标与当前分支名](Screenshot-1.png)
+
 - **查看面板**：点击按钮打开——左侧提交关系图、右侧本地分支列表、底部操作栏。点击面板外部或按 `Esc` 关闭；右上角刷新按钮可立即重读仓库。
 - **切换分支**：点击右侧任一本地分支。若存在会被覆盖的未提交修改，Git 会阻止切换，面板显示 Git 的原始错误，不会覆盖文件。
 - **获取**：拉取远程引用（`git fetch --all --prune`），不修改工作区、不自动合并。
@@ -201,6 +203,8 @@ This repository is a DSH plugin bundle (package `dsh-plugin-gitpanel`, Loader ro
 ### Using the panel
 
 Open a conversation whose workspace is a Git repository; a "branch glyph + current branch" button appears in the composer tool row (after the permission/plan controls).
+
+![The branch control in the composer tool row (highlighted in red), showing the branch glyph and current branch](Screenshot-1-en.png)
 
 - **Open the panel**: click the button — commit graph on the left, local branches on the right, action bar at the bottom. Click outside or press `Esc` to close; the refresh button re-reads the repository immediately.
 - **Switch branches**: click a local branch row. If uncommitted changes would be overwritten, Git refuses and the panel shows Git's own error instead of touching your files.
