@@ -7,6 +7,16 @@ DeepSeek Harness Web UI 的 Git 分支面板插件。
 
 ---
 
+## 写在前面
+
+感谢您在茫茫插件之海中发现了本插件。
+
+如您所见，这是一个简单的git插件。我知道，类似的插件已有不少，而且他们做得都很好！我的这个主要是更契合我自己的使用习惯：我喜欢一边打开其他IDE或者文本编辑器来阅读git历史信息，一边打开DSH指点仓库，激扬prompt。
+
+我的设计思路是如果我需要仔细阅读Git信息，我会打开有正经Git功能的软件，如果我只打开了DSH，那说明我也不太关心详细Git历史信息，毕竟仅靠DSH看那些信息也多少别扭，一来二去，本插件就不用提供复杂的Git相关功能了，因为轮不到它，也正因此本插件的功能相对克制，希望您键盘下留情。
+
+要是本插件刚好也能契合您的需求就再好不过了！也希望您能因此给个star，我会很开心的！
+
 ## 简体中文
 
 在 DSH 对话输入框的工具栏中加入一个紧凑的 Git 分支入口：查看提交关系图、浏览和切换本地分支，并直接完成获取、拉取、新建分支、提交、推送等日常操作，全程不离开对话界面。
@@ -122,12 +132,24 @@ Windows 下也可直接运行 `tests\run-checks.cmd` 执行全部检查。需要
 本项目基于 [MIT License](LICENSE) 开源。
 
 ```text
-Copyright (c) 2026 dsh-plugin-gitpanel contributors
+Copyright (c) 2026 dsh-plugin-gitpanel DFGHJ43
 ```
 
 在遵守 MIT 许可证的前提下，可自由使用、复制、修改、合并、发布、分发、再授权或销售本软件的副本；分发时请保留上述版权声明与许可声明。
 
 ---
+
+## A note from the author
+
+Thank you for discovering this plugin in the vast ocean of plugins.
+
+As you can seen, this is a simple Git plugin in for Deepseek Harness, I knew there are already a lot of similar plugins and they are great! This one is simply tailored to my own habit: I would launch another IDE or text editor to inspect Git history in detail, while keeping DSH open to survey the repository, prompt up a storm.
+
+My idea is that I would launch software with proper Git tools when needed. If I only have Deepseek Harness open, that probably means I don't care much about Git informations anyway. After all, Deepseek Harness isn't exactly the best place to browse codes and Git informations.
+
+So, this plugin no longer need to provide complicated git features, as they are someone else's job, that's why it's so simple. Please go easy on me!
+
+It would be awesome if this plugin happens to matches your workflow too! Please give me a star for that, I'd really appreciate it! 
 
 ## English
 
@@ -244,7 +266,7 @@ On Windows, `tests\run-checks.cmd` runs the whole suite. Node.js 20+ and a worki
 Released under the [MIT License](LICENSE).
 
 ```text
-Copyright (c) 2026 dsh-plugin-gitpanel contributors
+Copyright (c) 2026 dsh-plugin-gitpanel DFGHJ43
 ```
 
 You may use, copy, modify, merge, publish, distribute, sublicense, and/or sell
