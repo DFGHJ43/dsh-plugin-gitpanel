@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Git branch status in the composer with a commit-graph branch switcher",
+  "license": "MIT",
   "type": "module",
   "exports": {
     ".": "./index.js",

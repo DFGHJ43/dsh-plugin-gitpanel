@@ -119,7 +119,13 @@ Windows 下也可直接运行 `tests\run-checks.cmd` 执行全部检查。需要
 
 ### 许可证
 
-本仓库尚未选择开源许可证。在公开发布前请补充 `LICENSE` 文件。
+本项目基于 [MIT License](LICENSE) 开源。
+
+```text
+Copyright (c) 2026 dsh-plugin-gitpanel contributors
+```
+
+在遵守 MIT 许可证的前提下，可自由使用、复制、修改、合并、发布、分发、再授权或销售本软件的副本；分发时请保留上述版权声明与许可声明。
 
 ---
 
@@ -235,4 +241,12 @@ On Windows, `tests\run-checks.cmd` runs the whole suite. Node.js 20+ and a worki
 
 ### License
 
-No open-source license has been chosen yet. Add a `LICENSE` file before publishing.
+Released under the [MIT License](LICENSE).
+
+```text
+Copyright (c) 2026 dsh-plugin-gitpanel contributors
+```
+
+You may use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of this software under the terms of the MIT License; keep the copyright
+and permission notice with substantial portions of the software.
