@@ -1,7 +1,7 @@
 /**
  * Fixture check for the Host git layer: drive `readState` and `switchBranch`
- * from lib/git-read.js against the fixture repository created by
- * tests/setup-fixture.cmd, plus a throwaway repository for the failure paths.
+ * from lib/git-read.js against a scratch repository built by tests/fixture.mjs,
+ * plus a throwaway repository for the failure paths.
  *
  * Child output is captured through files rather than pipes because the agent
  * sandbox denies named pipes; the plugin's own git runner is unaffected.

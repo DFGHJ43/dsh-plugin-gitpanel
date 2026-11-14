@@ -120,6 +120,7 @@ dsh-plugin-gitpanel/
 ```bash
 node tests/check-layout.mjs        # 提交图布局、状态读取、分支名称
 node tests/check-actions.mjs       # fetch / pull / commit / push 与消息完整性
+node tests/check-identity.mjs      # 提交身份：仓库级优先、全局回退、缺失时拒绝
 node tests/check-routes.mjs        # Host 路由：围栏、参数校验、错误状态
 node tests/check-client-source.mjs # 客户端契约：布局、气泡、草稿、Tooltip
 node --check index.js && node --check client.js
@@ -254,6 +255,7 @@ The checks build their own scratch repositories (including bare remotes and clon
 ```bash
 node tests/check-layout.mjs        # graph layout, state reads, branch names
 node tests/check-actions.mjs       # fetch / pull / commit / push, message fidelity
+node tests/check-identity.mjs      # commit identity: repo first, global fallback, refuse when unset
 node tests/check-routes.mjs        # Host routes: fence, validation, error states
 node tests/check-client-source.mjs # client contracts: layout, bubble, draft, tooltip
 node --check index.js && node --check client.js

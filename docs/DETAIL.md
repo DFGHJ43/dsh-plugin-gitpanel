@@ -59,9 +59,12 @@ button shows a spinner; a second click cannot start a concurrent operation.
   editor; without it the editor starts empty (no invented default template).
   Staged changes are committed as they are; when nothing is staged, tracked
   modifications are staged first (`git add -u`, never untracked files) and the
-  bubble says so. Unmerged paths block the commit. A failure keeps the bubble and
-  the typed message so it can be retried. The footer button shows the repository's
-  real uncommitted count.
+  bubble says so. Unmerged paths block the commit. Git's own `user.name` and
+  `user.email` (repository level first, then the global level) identify both the
+  author and the committer; when neither level configures them, the commit is
+  refused with the commands that set them and no identity is invented. A failure
+  keeps the bubble and the typed message so it can be retried. The footer button
+  shows the repository's real uncommitted count.
 - The commit message is saved as a per-repository draft in the browser's local
   storage on every edit, so closing the bubble (Cancel, Escape, clicking outside),
   switching focus, re-rendering, or a failed commit never loses it; reopening the
