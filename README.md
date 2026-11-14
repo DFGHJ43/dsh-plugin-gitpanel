@@ -21,6 +21,8 @@ DeepSeek Harness 的 Git 分支面板插件。
 
 在 DSH 对话输入框的工具栏中加入一个紧凑的 Git 分支入口：查看提交关系图、浏览和切换本地分支，并直接完成获取、拉取、新建分支、提交、推送等日常操作，全程不离开对话界面。
 
+![Git 分支面板：左侧提交关系图、右侧本地分支列表、底部操作栏](Screenshot.png)
+
 ### 功能
 
 - **分支入口**：位于输入框工具行（权限 / 计划控件之后），显示分支图标与当前分支名；页面可见时每 5 秒刷新，窗口重新聚焦、操作完成后也会刷新。目录不是 Git 仓库（或未安装 Git）时自动隐藏。
@@ -155,6 +157,8 @@ It would be awesome if this plugin happens to matches your workflow too! Please 
 ## English
 
 A compact Git branch control for the DSH composer toolbar: read the commit graph, browse and switch local branches, and run everyday Git operations — fetch, pull, create a branch, commit, and push — without leaving the conversation.
+
+![The Git panel: commit graph on the left, local branches on the right, action bar at the bottom](Screenshot-en.png)
 
 ### Features
 
