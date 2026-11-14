@@ -1,7 +1,7 @@
 # dsh-plugin-gitpanel
 
 A Git branch panel for the DeepSeek Harness (DSH) Web UI.
-DeepSeek Harness Web UI 的 Git 分支面板插件。
+DeepSeek Harness 的 Git 分支面板插件。
 
 [简体中文](#简体中文) · [English](#english)
 
